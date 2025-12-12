@@ -1,5 +1,13 @@
 package main
 
+import (
+	"fmt"
+
+	"github.com/gamassss/url-shortener/pkg/generator"
+)
+
 func main() {
-	println("Hi!")
+	for _ = range 10 {
+		fmt.Println(generator.GenerateShortCode())
+	}
 }
