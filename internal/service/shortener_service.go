@@ -9,6 +9,7 @@ import (
 
 	"github.com/gamassss/url-shortener/internal/domain"
 	"github.com/gamassss/url-shortener/pkg/generator"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
@@ -67,4 +68,16 @@ func (s *ShortenerService) ShortenURL(ctx context.Context, req *domain.CreatedUR
 	}
 
 	return nil, fmt.Errorf("failed to generate short code after %d retries: %w", maxRetries, err)
+}
+
+func (s *ShortenerService) GetOriginalURL(ctx context.Context, shortCode string) (*domain.URL, error) {
+	url, err := s.urlRepo.GetByShortCode(ctx, shortCode)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, fmt.Errorf("URL not found")
+		}
+		return nil, fmt.Errorf("failed to get original url: %w", err)
+	}
+
+	return url, nil
 }
