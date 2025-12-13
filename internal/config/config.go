@@ -8,8 +8,17 @@ import (
 )
 
 type Config struct {
+	Redis    RedisConfig
 	Server   ServerConfig
 	Database DatabaseConfig
+}
+
+type RedisConfig struct {
+	Host     string
+	Port     string
+	Password string
+	DB       int
+	Addr     string
 }
 
 type ServerConfig struct {
@@ -30,6 +39,12 @@ func Load() (*Config, error) {
 	viper.AutomaticEnv()
 
 	viper.SetDefault("SERVER_PORT", "8080")
+
+	viper.SetDefault("REDIS_HOST", "localhost")
+	viper.SetDefault("REDIS_PORT", "6379")
+	viper.SetDefault("REDIS_PASSWORD", "")
+	viper.SetDefault("REDIS_DB", 0)
+
 	viper.SetDefault("DB_HOST", "localhost")
 	viper.SetDefault("DB_PORT", "5432")
 	viper.SetDefault("DB_USER", "root")
@@ -40,12 +55,21 @@ func Load() (*Config, error) {
 		log.Println("Warning: .env file not found, using default values")
 	}
 
+	redisConfig := RedisConfig{
+		Host:     viper.GetString("REDIS_HOST"),
+		Port:     viper.GetString("REDIS_PORT"),
+		Password: viper.GetString("REDIS_PASSWORD"),
+		DB:       viper.GetInt("REDIS_DB"),
+	}
+
+	redisConfig.Addr = fmt.Sprintf("%s:%s", redisConfig.Host, redisConfig.Port)
+
 	dbConfig := DatabaseConfig{
-		Host:     viper.GetString("Host"),
-		Port:     viper.GetString("Port"),
-		User:     viper.GetString("User"),
-		Password: viper.GetString("Password"),
-		Name:     viper.GetString("Name"),
+		Host:     viper.GetString("DB_HOST"),
+		Port:     viper.GetString("DB_PORT"),
+		User:     viper.GetString("DB_USER"),
+		Password: viper.GetString("DB_PASSWORD"),
+		Name:     viper.GetString("DB_NAME"),
 	}
 
 	dbConfig.URL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
@@ -60,6 +84,7 @@ func Load() (*Config, error) {
 		Server: ServerConfig{
 			Port: viper.GetString("SERVER_PORT"),
 		},
+		Redis:    redisConfig,
 		Database: dbConfig,
 	}
 

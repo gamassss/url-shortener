@@ -11,6 +11,7 @@ import (
 	"github.com/gamassss/url-shortener/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
@@ -24,7 +25,19 @@ func main() {
 		log.Fatal(err)
 	}
 
-	urlRepo := postgres.NewURLRepository(dbPool)
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     cfg.Redis.Addr,
+		Password: cfg.Redis.Password,
+		DB:       cfg.Redis.DB,
+	})
+
+	if err = redisClient.Ping(context.Background()).Err(); err != nil {
+		fmt.Errorf("failed to connect to redis: %w", err)
+	}
+
+	defer redisClient.Close()
+
+	urlRepo := postgres.NewURLRepository(dbPool, redisClient)
 	shortenerService := service.NewShortenerService(urlRepo)
 	shortenerHandler := handler.NewShortenerHandler(shortenerService)
 

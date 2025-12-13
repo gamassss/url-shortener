@@ -14,7 +14,7 @@ type URL struct {
 }
 
 type CreatedURLRequest struct {
-	OriginalURL string `json:"url" binding:"required, url"`
+	OriginalURL string `json:"url" binding:"required,url"`
 	CustomAlias string `json:"custom_alias,omitempty"`
 	ExpiryHours int    `json:"expiry_hours,omitempty"`
 }
