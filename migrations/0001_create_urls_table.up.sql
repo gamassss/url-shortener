@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS urls (
     id           BIGSERIAL PRIMARY KEY,
     short_code   VARCHAR(20) UNIQUE NOT NULL,
     original_url TEXT        NOT NULL,
-    clicks       BIGINT      DEFAULT 0,
+    click_count       BIGINT      DEFAULT 0,
     created_at   TIMESTAMP   NOT NULL DEFAULT NOW(),
     updated_at   TIMESTAMP   NOT NULL DEFAULT NOW(),
     expires_at   TIMESTAMP,
