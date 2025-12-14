@@ -20,7 +20,6 @@ type URLRepository interface {
 
 type ShortenerService struct {
 	urlRepo URLRepository
-	// TODO: add redis for opt later
 }
 
 func NewShortenerService(urlRepo URLRepository) *ShortenerService {

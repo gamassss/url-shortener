@@ -1,18 +1,23 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gamassss/url-shortener/internal/domain"
-	"github.com/gamassss/url-shortener/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
-type ShortenerHandler struct {
-	service *service.ShortenerService
+type ShortenerService interface {
+	ShortenURL(ctx context.Context, req *domain.CreatedURLRequest) (*domain.URL, error)
+	GetOriginalURL(ctx context.Context, shortCode string) (*domain.URL, error)
 }
 
-func NewShortenerHandler(service *service.ShortenerService) *ShortenerHandler {
+type ShortenerHandler struct {
+	service ShortenerService
+}
+
+func NewShortenerHandler(service ShortenerService) *ShortenerHandler {
 	return &ShortenerHandler{service: service}
 }
 
@@ -20,6 +25,7 @@ func (h *ShortenerHandler) ShortenURL(c *gin.Context) {
 	var req domain.CreatedURLRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
 
 	url, err := h.service.ShortenURL(c.Request.Context(), &req)
