@@ -18,12 +18,18 @@ type URLRepository interface {
 	GetByShortCode(ctx context.Context, shortCode string) (*domain.URL, error)
 }
 
-type ShortenerService struct {
-	urlRepo URLRepository
+type CacheRepository interface {
+	GetURL(ctx context.Context, shortCode string) (*domain.URL, error)
+	SetURL(ctx context.Context, url *domain.URL, ttl time.Duration) error
 }
 
-func NewShortenerService(urlRepo URLRepository) *ShortenerService {
-	return &ShortenerService{urlRepo: urlRepo}
+type ShortenerService struct {
+	urlRepo   URLRepository
+	cacheRepo CacheRepository
+}
+
+func NewShortenerService(urlRepo URLRepository, cacheRepo CacheRepository) *ShortenerService {
+	return &ShortenerService{urlRepo: urlRepo, cacheRepo: cacheRepo}
 }
 
 func (s *ShortenerService) ShortenURL(ctx context.Context, req *domain.CreatedURLRequest) (*domain.URL, error) {
@@ -70,13 +76,26 @@ func (s *ShortenerService) ShortenURL(ctx context.Context, req *domain.CreatedUR
 }
 
 func (s *ShortenerService) GetOriginalURL(ctx context.Context, shortCode string) (*domain.URL, error) {
-	url, err := s.urlRepo.GetByShortCode(ctx, shortCode)
+	url, err := s.cacheRepo.GetURL(ctx, shortCode)
+	if err == nil {
+		return url, nil
+	}
+
+	url, err = s.urlRepo.GetByShortCode(ctx, shortCode)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("URL not found")
 		}
 		return nil, fmt.Errorf("failed to get original url: %w", err)
 	}
+
+	go func() {
+		ttl := 24 * time.Hour
+		if url.ExpiresAt != nil {
+			ttl = time.Until(*url.ExpiresAt)
+		}
+		s.cacheRepo.SetURL(context.Background(), url, ttl)
+	}()
 
 	return url, nil
 }

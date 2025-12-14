@@ -8,6 +8,7 @@ import (
 	"github.com/gamassss/url-shortener/internal/config"
 	"github.com/gamassss/url-shortener/internal/handler"
 	"github.com/gamassss/url-shortener/internal/repository/postgres"
+	redisRepo "github.com/gamassss/url-shortener/internal/repository/redis"
 	"github.com/gamassss/url-shortener/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -37,8 +38,9 @@ func main() {
 
 	defer redisClient.Close()
 
-	urlRepo := postgres.NewURLRepository(dbPool, redisClient)
-	shortenerService := service.NewShortenerService(urlRepo)
+	urlRepo := postgres.NewURLRepository(dbPool)
+	urlCache := redisRepo.NewURLCache(redisClient)
+	shortenerService := service.NewShortenerService(urlRepo, urlCache)
 	shortenerHandler := handler.NewShortenerHandler(shortenerService)
 
 	router := gin.Default()

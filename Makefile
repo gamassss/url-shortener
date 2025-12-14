@@ -22,5 +22,12 @@ docker-restart:
 run:
 	go run cmd/api/main.go
 
+test:
+	gotestsum --format testname -- ./... -v
+
+test-integration:
+	gotestsum --format testname -- -tags=integration ./tests/integration/... -v
+
 test-peak:
 	k6 run -e BASE_URL=http://localhost:8080 tests/load/peak.js --out influxdb=http://localhost:8086/k6
+
