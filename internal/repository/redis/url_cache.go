@@ -24,7 +24,7 @@ func (r *URLCache) GetURL(ctx context.Context, shortCode string) (*domain.URL, e
 	data, err := r.client.Get(ctx, key).Result()
 
 	if err == redis.Nil {
-		return nil, nil
+		return nil, err
 	}
 
 	if err != nil {

@@ -154,7 +154,7 @@ func TestURLRepository_GetByShortCode_Success(t *testing.T) {
 	assert.Equal(t, "fetch123", result.ShortCode)
 	assert.Equal(t, "https://example.com", result.OriginalURL)
 	assert.True(t, result.IsActive)
-	assert.Equal(t, int64(0), result.Clicks)
+	assert.Equal(t, int64(0), result.ClickCount)
 }
 
 func TestURLRepository_GetByShortCode_NotFound(t *testing.T) {

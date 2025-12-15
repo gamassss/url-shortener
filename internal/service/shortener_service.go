@@ -77,9 +77,6 @@ func (s *ShortenerService) ShortenURL(ctx context.Context, req *domain.CreatedUR
 
 func (s *ShortenerService) GetOriginalURL(ctx context.Context, shortCode string) (*domain.URL, error) {
 	url, err := s.cacheRepo.GetURL(ctx, shortCode)
-	if err == nil {
-		return url, nil
-	}
 
 	url, err = s.urlRepo.GetByShortCode(ctx, shortCode)
 	if err != nil {

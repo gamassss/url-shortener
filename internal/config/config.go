@@ -32,6 +32,8 @@ type DatabaseConfig struct {
 	Password string
 	Name     string
 	URL      string
+	MaxConns int
+	MinConns int
 }
 
 func Load() (*Config, error) {
@@ -50,6 +52,8 @@ func Load() (*Config, error) {
 	viper.SetDefault("DB_USER", "root")
 	viper.SetDefault("DB_PASSWORD", "root")
 	viper.SetDefault("DB_NAME", "urlshortener")
+	viper.SetDefault("DB_MAX_CONNS", 100)
+	viper.SetDefault("DB_MIN_CONNS", 10)
 
 	if err := viper.ReadInConfig(); err != nil {
 		log.Println("Warning: .env file not found, using default values")
@@ -70,14 +74,18 @@ func Load() (*Config, error) {
 		User:     viper.GetString("DB_USER"),
 		Password: viper.GetString("DB_PASSWORD"),
 		Name:     viper.GetString("DB_NAME"),
+		MaxConns: viper.GetInt("DB_MAX_CONNS"),
+		MinConns: viper.GetInt("DB_MIN_CONNS"),
 	}
 
-	dbConfig.URL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+	dbConfig.URL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable&pool_max_conns=%d&pool_min_conns=%d",
 		dbConfig.User,
 		dbConfig.Password,
 		dbConfig.Host,
 		dbConfig.Port,
 		dbConfig.Name,
+		dbConfig.MaxConns,
+		dbConfig.MinConns,
 	)
 
 	cfg := &Config{

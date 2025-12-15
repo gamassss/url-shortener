@@ -29,7 +29,7 @@ func (r *URLRepository) GetByShortCode(ctx context.Context, shortCode string) (*
 	var url domain.URL
 
 	query := `
-		SELECT id, short_code, original_url, clicks, created_at, updated_at, expires_at, is_active FROM urls
+		SELECT id, short_code, original_url, click_count, created_at, updated_at, expires_at, is_active FROM urls
 		WHERE short_code = $1	
 	`
 
@@ -39,7 +39,7 @@ func (r *URLRepository) GetByShortCode(ctx context.Context, shortCode string) (*
 		&url.ID,
 		&url.ShortCode,
 		&url.OriginalURL,
-		&url.Clicks,
+		&url.ClickCount,
 		&url.CreatedAt,
 		&url.UpdatedAt,
 		&url.ExpiresAt,

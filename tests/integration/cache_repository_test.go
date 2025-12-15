@@ -43,7 +43,7 @@ func TestCacheRepository_SetAndGetURL(t *testing.T) {
 		ID:          1,
 		ShortCode:   "test123",
 		OriginalURL: "https://example.com",
-		Clicks:      10,
+		ClickCount:  10,
 		IsActive:    true,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
@@ -57,7 +57,7 @@ func TestCacheRepository_SetAndGetURL(t *testing.T) {
 	assert.NotNil(t, result)
 	assert.Equal(t, url.ShortCode, result.ShortCode)
 	assert.Equal(t, url.OriginalURL, result.OriginalURL)
-	assert.Equal(t, url.Clicks, result.Clicks)
+	assert.Equal(t, url.ClickCount, result.ClickCount)
 	assert.Equal(t, url.IsActive, result.IsActive)
 }
 
@@ -109,21 +109,21 @@ func TestCacheRepository_UpdateURL(t *testing.T) {
 	url := &domain.URL{
 		ShortCode:   "update123",
 		OriginalURL: "https://example.com",
-		Clicks:      5,
+		ClickCount:  5,
 		IsActive:    true,
 	}
 
 	err := repo.SetURL(ctx, url, 10*time.Minute)
 	require.NoError(t, err)
 
-	url.Clicks = 10
+	url.ClickCount = 10
 	err = repo.SetURL(ctx, url, 10*time.Minute)
 	require.NoError(t, err)
 
 	result, err := repo.GetURL(ctx, "update123")
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	assert.Equal(t, int64(10), result.Clicks)
+	assert.Equal(t, int64(10), result.ClickCount)
 }
 
 func TestCacheRepository_MultipleURLs(t *testing.T) {

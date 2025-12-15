@@ -37,6 +37,7 @@ func (h *ShortenerHandler) ShortenURL(c *gin.Context) {
 
 	if req.CustomAlias != "" && validator.IsReservedKeyword(req.CustomAlias) {
 		response.BadRequest(c, "This alias cannot be used")
+		return
 	}
 
 	url, err := h.service.ShortenURL(c.Request.Context(), &req)
@@ -58,6 +59,7 @@ func (h *ShortenerHandler) Redirect(c *gin.Context) {
 
 	if shortCode == "" {
 		response.BadRequest(c, "Short code is required")
+		return
 	}
 
 	url, err := h.service.GetOriginalURL(c.Request.Context(), shortCode)
