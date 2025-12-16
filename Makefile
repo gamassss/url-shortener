@@ -1,7 +1,7 @@
 include .env
 export
 
-DB_CONTAINER=url-shortener-postgres-1
+DB_CONTAINER = url-shortener-postgres-1
 BASE_URL ?= http://localhost:8080
 DATABASE_URL = postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable
 
@@ -11,14 +11,26 @@ migrate-up:
 migrate-down:
 	migrate -path migrations -database "$(DATABASE_URL)" down
 
-docker-up:
+build:
+	docker-compose build --no-cache
+
+up:
 	docker-compose up -d
 
-docker-down:
+down:
 	docker-compose down
 
-docker-restart:
+restart:
 	docker-compose restart
+
+clean:
+	docker-compose down -v
+	docker system prune -f
+
+rebuild: down build up
+
+monitor:
+	watch -n 1 'docker stats --no-stream'
 
 run:
 	go run cmd/api/main.go

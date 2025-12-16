@@ -15,11 +15,14 @@ type Config struct {
 }
 
 type RedisConfig struct {
-	Host     string
-	Port     string
-	Password string
-	DB       int
-	Addr     string
+	Host         string
+	Port         string
+	Password     string
+	DB           int
+	Addr         string
+	PoolSize     int
+	MinIdleConns int
+	MaxRetries   int
 }
 
 type ServerConfig struct {
@@ -49,6 +52,9 @@ func Load() (*Config, error) {
 	viper.SetDefault("REDIS_PORT", "6379")
 	viper.SetDefault("REDIS_PASSWORD", "")
 	viper.SetDefault("REDIS_DB", 0)
+	viper.SetDefault("REDIS_POOL_SIZE", 100)
+	viper.SetDefault("REDIS_MIN_IDLE_CONNS", 20)
+	viper.SetDefault("REDIS_MAX_RETRIES", 3)
 
 	viper.SetDefault("DB_HOST", "localhost")
 	viper.SetDefault("DB_PORT", "5432")
@@ -65,10 +71,13 @@ func Load() (*Config, error) {
 	}
 
 	redisConfig := RedisConfig{
-		Host:     viper.GetString("REDIS_HOST"),
-		Port:     viper.GetString("REDIS_PORT"),
-		Password: viper.GetString("REDIS_PASSWORD"),
-		DB:       viper.GetInt("REDIS_DB"),
+		Host:         viper.GetString("REDIS_HOST"),
+		Port:         viper.GetString("REDIS_PORT"),
+		Password:     viper.GetString("REDIS_PASSWORD"),
+		DB:           viper.GetInt("REDIS_DB"),
+		PoolSize:     viper.GetInt("REDIS_POOL_SIZE"),
+		MinIdleConns: viper.GetInt("REDIS_MIN_IDLE_CONNS"),
+		MaxRetries:   viper.GetInt("REDIS_MAX_RETRIES"),
 	}
 
 	redisConfig.Addr = fmt.Sprintf("%s:%s", redisConfig.Host, redisConfig.Port)

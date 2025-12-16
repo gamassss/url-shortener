@@ -37,11 +37,19 @@ func main() {
 		log.Fatal(err)
 	}
 	defer dbPool.Close()
-	
+
+	log.Printf("Max Connections: %d", poolConfig.MaxConns)
+	log.Printf("Min Connections: %d", poolConfig.MinConns)
+	log.Printf("Max Conn Lifetime: %s", poolConfig.MaxConnLifetime)
+	log.Printf("Max Conn Idle Time: %s", poolConfig.MaxConnIdleTime)
+
 	redisClient := redis.NewClient(&redis.Options{
-		Addr:     cfg.Redis.Addr,
-		Password: cfg.Redis.Password,
-		DB:       cfg.Redis.DB,
+		Addr:         cfg.Redis.Addr,
+		Password:     cfg.Redis.Password,
+		DB:           cfg.Redis.DB,
+		PoolSize:     cfg.Redis.PoolSize,
+		MinIdleConns: cfg.Redis.MinIdleConns,
+		MaxRetries:   cfg.Redis.MaxRetries,
 	})
 
 	if err = redisClient.Ping(context.Background()).Err(); err != nil {

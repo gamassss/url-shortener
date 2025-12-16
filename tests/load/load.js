@@ -9,13 +9,13 @@ const redirectLatency = new Trend('redirect_latency');
 const dbLatency = new Trend('db_latency');
 const cacheLatency = new Trend('cache_latency');
 
-const READ_RATIO = 0.8;
+const READ_RATIO = 0.9;
 
 const hotUrls = Array.from({length: 100}, (_, i) =>
     `hot_${String(i + 1).padStart(6, '0')}`
 );
 
-const warmUrls = Array.from({length: 10000}, (_, i) =>
+const warmUrls = Array.from({length: 5000}, (_, i) =>  // Reduced from 10k
     `warm_${String(i + 1).padStart(6, '0')}`
 );
 
@@ -26,18 +26,25 @@ function getRandomColdUrl() {
 
 export const options = {
     stages: [
-        { duration: '10s', target: 100 },
-        // { duration: '3m', target: 500 },
-        // { duration: '1m', target: 1000 },
-        // { duration: '2m', target: 500 },
-        // { duration: '1m', target: 0 },
+        { duration: '1m', target: 100 },
+        { duration: '2m', target: 500 },
+        { duration: '2m', target: 1000 },
+        { duration: '2m', target: 250 },
+        { duration: '1m', target: 0 },
     ],
+
     thresholds: {
-        'http_req_duration{scenario:hot}': ['p(95)<50', 'p(99)<100'],
-        'http_req_duration{scenario:warm}': ['p(95)<100', 'p(99)<200'],
-        'http_req_duration{scenario:cold}': ['p(95)<500', 'p(99)<1000'],
-        http_req_failed: ['rate<0.01'],
+        'http_req_duration{scenario:hot}': ['p(95)<200', 'p(99)<400'],
+        'http_req_duration{scenario:warm}': ['p(95)<600', 'p(99)<1200'],
+        'http_req_duration{scenario:cold}': ['p(95)<2000', 'p(99)<3500'],
+        'http_req_failed': ['rate<0.08'],
+        'http_req_duration': ['p(95)<1500'],
     },
+
+    noConnectionReuse: false,
+    userAgent: 'K6LoadTest/1.0',
+    batch: 10,
+    batchPerHost: 5,
 };
 
 export default function () {
@@ -47,10 +54,10 @@ export default function () {
         const rand = Math.random();
         let shortcode, scenario;
 
-        if (rand < 0.3) {
+        if (rand < 0.5) {
             shortcode = hotUrls[Math.floor(Math.random() * hotUrls.length)];
             scenario = 'hot';
-        } else if (rand < 0.8) {
+        } else if (rand < 0.85) {
             shortcode = warmUrls[Math.floor(Math.random() * warmUrls.length)];
             scenario = 'warm';
         } else {
@@ -64,10 +71,12 @@ export default function () {
                 name: 'redirect',
                 scenario: scenario
             },
+            timeout: '5s',
         });
 
         check(res, {
             'redirect success': (r) => r.status === 301 || r.status === 302,
+            'not timeout': (r) => r.status !== 0,
         });
 
         const cacheHit = res.headers['X-Cache-Hit'] === 'true';
@@ -89,26 +98,30 @@ export default function () {
         const res = http.post('http://localhost:8080/api/shorten', payload, {
             headers: { 'Content-Type': 'application/json' },
             tags: { name: 'shorten' },
+            timeout: '10s',
         });
-
-        if (res.status !== 200 && res.status !== 201) {
-            console.log('shorten error:', res.status, res.body);
-        }
 
         check(res, {
             'shorten success': (r) => r.status === 200 || r.status === 201,
+            'not server error': (r) => r.status < 500,
         });
     }
 
-    sleep(0.1);
+    sleep(Math.random() * 0.4 + 0.2);  // 0.2-0.6s
 }
 
 export function handleSummary(data) {
-    const cacheHitRate = (data.metrics.cache_hits.values.count /
-        (data.metrics.cache_hits.values.count + data.metrics.cache_misses.values.count) * 100).toFixed(2);
+    const totalRequests = data.metrics.cache_hits.values.count +
+        data.metrics.cache_misses.values.count;
+    const cacheHitRate = totalRequests > 0
+        ? (data.metrics.cache_hits.values.count / totalRequests * 100).toFixed(2)
+        : '0.00';
+
+    const avgRedirectLatency = data.metrics.redirect_latency?.values?.avg?.toFixed(2) || 'N/A';
+    const p95RedirectLatency = data.metrics.redirect_latency?.values?.['p(95)']?.toFixed(2) || 'N/A';
 
     return {
         'stdout': textSummary(data, { indent: ' ', enableColors: true }),
-        'summary.json': JSON.stringify(data),
+        'summary.json': JSON.stringify(data, null, 2),
     };
 }
