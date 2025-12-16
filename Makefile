@@ -1,6 +1,7 @@
 include .env
 export
 
+DB_CONTAINER=url-shortener-postgres-1
 BASE_URL ?= http://localhost:8080
 DATABASE_URL = postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)?sslmode=disable
 
@@ -21,6 +22,12 @@ docker-restart:
 
 run:
 	go run cmd/api/main.go
+
+run-seed:
+	go run tests/load/generate-data/main.go
+
+redis-flushall:
+	docker exec -it url-shortener-redis-1 redis-cli flushall
 
 test:
 	gotestsum --format testname -- ./... -v

@@ -12,7 +12,7 @@ import (
 
 type ShortenerService interface {
 	ShortenURL(ctx context.Context, req *domain.CreatedURLRequest) (*domain.URL, error)
-	GetOriginalURL(ctx context.Context, shortCode string) (*domain.URL, error)
+	GetOriginalURL(ctx context.Context, shortCode string) (*domain.URL, bool, error)
 }
 
 type ShortenerHandler struct {
@@ -26,7 +26,7 @@ func NewShortenerHandler(service ShortenerService) *ShortenerHandler {
 func (h *ShortenerHandler) ShortenURL(c *gin.Context) {
 	var req domain.CreatedURLRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request")
+		response.BadRequest(c, "Invalid JSON format")
 		return
 	}
 
@@ -62,10 +62,16 @@ func (h *ShortenerHandler) Redirect(c *gin.Context) {
 		return
 	}
 
-	url, err := h.service.GetOriginalURL(c.Request.Context(), shortCode)
+	url, cacheHit, err := h.service.GetOriginalURL(c.Request.Context(), shortCode)
 	if err != nil {
 		response.NotFound(c, "URL not found")
 		return
+	}
+
+	if cacheHit {
+		c.Header("X-Cache-Hit", "true")
+	} else {
+		c.Header("X-Cache-Hit", "false")
 	}
 
 	c.Redirect(http.StatusMovedPermanently, url.OriginalURL)

@@ -46,7 +46,7 @@ func (s *ShortenerService) ShortenURL(ctx context.Context, req *domain.CreatedUR
 		}
 
 		url := &domain.URL{
-			OriginalURL: req.OriginalURL,
+			OriginalURL: req.URL,
 			ShortCode:   shortCode,
 			IsActive:    true,
 		}
@@ -75,15 +75,18 @@ func (s *ShortenerService) ShortenURL(ctx context.Context, req *domain.CreatedUR
 	return nil, fmt.Errorf("failed to generate short code after %d retries: %w", maxRetries, err)
 }
 
-func (s *ShortenerService) GetOriginalURL(ctx context.Context, shortCode string) (*domain.URL, error) {
+func (s *ShortenerService) GetOriginalURL(ctx context.Context, shortCode string) (*domain.URL, bool, error) {
 	url, err := s.cacheRepo.GetURL(ctx, shortCode)
+	if err == nil && url != nil {
+		return url, true, nil
+	}
 
 	url, err = s.urlRepo.GetByShortCode(ctx, shortCode)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("URL not found")
+			return nil, false, fmt.Errorf("URL not found")
 		}
-		return nil, fmt.Errorf("failed to get original url: %w", err)
+		return nil, false, fmt.Errorf("failed to get original url: %w", err)
 	}
 
 	go func() {
@@ -94,5 +97,5 @@ func (s *ShortenerService) GetOriginalURL(ctx context.Context, shortCode string)
 		s.cacheRepo.SetURL(context.Background(), url, ttl)
 	}()
 
-	return url, nil
+	return url, false, nil
 }

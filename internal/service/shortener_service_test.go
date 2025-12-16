@@ -22,7 +22,7 @@ func TestShortenURL_Success_GeneratedCode(t *testing.T) {
 	ctx := context.Background()
 
 	req := &domain.CreatedURLRequest{
-		OriginalURL: "https://example.com",
+		URL: "https://example.com",
 	}
 
 	mockURLRepo.On("Create", ctx, mock.MatchedBy(func(url *domain.URL) bool {
@@ -50,7 +50,7 @@ func TestShortenURL_Success_CustomAlias(t *testing.T) {
 	ctx := context.Background()
 
 	req := &domain.CreatedURLRequest{
-		OriginalURL: "https://example.com",
+		URL:         "https://example.com",
 		CustomAlias: "mylink",
 	}
 
@@ -74,7 +74,7 @@ func TestShortenURL_Success_WithExpiry(t *testing.T) {
 	ctx := context.Background()
 
 	req := &domain.CreatedURLRequest{
-		OriginalURL: "https://example.com",
+		URL:         "https://example.com",
 		ExpiryHours: 24,
 	}
 
@@ -103,7 +103,7 @@ func TestShortenURL_Retry_SuccessAfterCollision(t *testing.T) {
 	ctx := context.Background()
 
 	req := &domain.CreatedURLRequest{
-		OriginalURL: "https://example.com",
+		URL: "https://example.com",
 	}
 
 	pgErr := &pgconn.PgError{
@@ -133,7 +133,7 @@ func TestShortenURL_Retry_FailAfterMaxRetries(t *testing.T) {
 	ctx := context.Background()
 
 	req := &domain.CreatedURLRequest{
-		OriginalURL: "https://example.com",
+		URL: "https://example.com",
 	}
 
 	pgErr := &pgconn.PgError{
@@ -160,7 +160,7 @@ func TestShortenURL_CustomAlias_DuplicateError(t *testing.T) {
 	ctx := context.Background()
 
 	req := &domain.CreatedURLRequest{
-		OriginalURL: "https://example.com",
+		URL:         "https://example.com",
 		CustomAlias: "existing",
 	}
 
@@ -202,7 +202,7 @@ func TestGetOriginalURL_Success_FromCache(t *testing.T) {
 	mockCacheRepo.On("GetURL", ctx, "abc123").
 		Return(cachedURL, nil).Once()
 
-	result, err := service.GetOriginalURL(ctx, "abc123")
+	result, _, err := service.GetOriginalURL(ctx, "abc123")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -238,7 +238,7 @@ func TestGetOriginalURL_Success_FromDB_CacheMiss(t *testing.T) {
 	mockCacheRepo.On("SetURL", mock.Anything, expectedURL, mock.AnythingOfType("time.Duration")).
 		Return(nil).Maybe()
 
-	result, err := service.GetOriginalURL(ctx, "abc123")
+	result, _, err := service.GetOriginalURL(ctx, "abc123")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -261,7 +261,7 @@ func TestGetOriginalURL_NotFound(t *testing.T) {
 	mockURLRepo.On("GetByShortCode", ctx, "notfound").
 		Return(nil, pgx.ErrNoRows).Once()
 
-	result, err := service.GetOriginalURL(ctx, "notfound")
+	result, _, err := service.GetOriginalURL(ctx, "notfound")
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -285,7 +285,7 @@ func TestGetOriginalURL_DatabaseError(t *testing.T) {
 	mockURLRepo.On("GetByShortCode", ctx, "abc123").
 		Return(nil, dbErr).Once()
 
-	result, err := service.GetOriginalURL(ctx, "abc123")
+	result, _, err := service.GetOriginalURL(ctx, "abc123")
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -302,7 +302,7 @@ func TestShortenURL_DatabaseError(t *testing.T) {
 	ctx := context.Background()
 
 	req := &domain.CreatedURLRequest{
-		OriginalURL: "https://example.com",
+		URL: "https://example.com",
 	}
 
 	dbErr := fmt.Errorf("database connection failed")
@@ -341,7 +341,7 @@ func TestGetOriginalURL_CacheError_FallbackToDB(t *testing.T) {
 	mockCacheRepo.On("SetURL", mock.Anything, expectedURL, mock.AnythingOfType("time.Duration")).
 		Return(nil).Maybe()
 
-	result, err := service.GetOriginalURL(ctx, "abc123")
+	result, _, err := service.GetOriginalURL(ctx, "abc123")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -378,7 +378,7 @@ func TestGetOriginalURL_WithExpiry_CorrectTTL(t *testing.T) {
 		return diff < time.Minute && diff > -time.Minute
 	})).Return(nil).Maybe()
 
-	result, err := service.GetOriginalURL(ctx, "abc123")
+	result, _, err := service.GetOriginalURL(ctx, "abc123")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, result)

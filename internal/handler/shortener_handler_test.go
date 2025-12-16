@@ -42,7 +42,7 @@ func TestShortenURL_Success(t *testing.T) {
 	}
 
 	mockService.On("ShortenURL", mock.Anything, mock.MatchedBy(func(req *domain.CreatedURLRequest) bool {
-		return req.OriginalURL == "https://example.com"
+		return req.URL == "https://example.com"
 	})).Return(mockURL, nil).Once()
 
 	router.ServeHTTP(w, req)

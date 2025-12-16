@@ -21,11 +21,23 @@ func main() {
 		log.Fatal(err)
 	}
 
-	dbPool, err := pgxpool.New(context.Background(), cfg.Database.URL)
+	dbConfig := cfg.Database
+	poolConfig, err := pgxpool.ParseConfig(dbConfig.URL)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	poolConfig.MaxConns = int32(dbConfig.MaxConns)
+	poolConfig.MinConns = int32(dbConfig.MinConns)
+	poolConfig.MaxConnLifetime = dbConfig.ConnMaxLifetime
+	poolConfig.MaxConnIdleTime = dbConfig.MaxConnIdleTime
+
+	dbPool, err := pgxpool.NewWithConfig(context.Background(), poolConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer dbPool.Close()
+	
 	redisClient := redis.NewClient(&redis.Options{
 		Addr:     cfg.Redis.Addr,
 		Password: cfg.Redis.Password,
@@ -33,7 +45,7 @@ func main() {
 	})
 
 	if err = redisClient.Ping(context.Background()).Err(); err != nil {
-		fmt.Errorf("failed to connect to redis: %w", err)
+		log.Fatal(fmt.Errorf("failed to connect to redis: %w", err))
 	}
 
 	defer redisClient.Close()

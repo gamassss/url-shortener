@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -26,14 +27,16 @@ type ServerConfig struct {
 }
 
 type DatabaseConfig struct {
-	Host     string
-	Port     string
-	User     string
-	Password string
-	Name     string
-	URL      string
-	MaxConns int
-	MinConns int
+	Host            string
+	Port            string
+	User            string
+	Password        string
+	Name            string
+	URL             string
+	MaxConns        int
+	MinConns        int
+	ConnMaxLifetime time.Duration
+	MaxConnIdleTime time.Duration
 }
 
 func Load() (*Config, error) {
@@ -52,8 +55,10 @@ func Load() (*Config, error) {
 	viper.SetDefault("DB_USER", "root")
 	viper.SetDefault("DB_PASSWORD", "root")
 	viper.SetDefault("DB_NAME", "urlshortener")
-	viper.SetDefault("DB_MAX_CONNS", 100)
+	viper.SetDefault("DB_MAX_CONNS", 40)
 	viper.SetDefault("DB_MIN_CONNS", 10)
+	viper.SetDefault("DB_CONN_MAX_LIFETIME", 5)
+	viper.SetDefault("DB_CONN_MAX_IDLE_TIME", 30) // in seconds
 
 	if err := viper.ReadInConfig(); err != nil {
 		log.Println("Warning: .env file not found, using default values")
@@ -69,23 +74,23 @@ func Load() (*Config, error) {
 	redisConfig.Addr = fmt.Sprintf("%s:%s", redisConfig.Host, redisConfig.Port)
 
 	dbConfig := DatabaseConfig{
-		Host:     viper.GetString("DB_HOST"),
-		Port:     viper.GetString("DB_PORT"),
-		User:     viper.GetString("DB_USER"),
-		Password: viper.GetString("DB_PASSWORD"),
-		Name:     viper.GetString("DB_NAME"),
-		MaxConns: viper.GetInt("DB_MAX_CONNS"),
-		MinConns: viper.GetInt("DB_MIN_CONNS"),
+		Host:            viper.GetString("DB_HOST"),
+		Port:            viper.GetString("DB_PORT"),
+		User:            viper.GetString("DB_USER"),
+		Password:        viper.GetString("DB_PASSWORD"),
+		Name:            viper.GetString("DB_NAME"),
+		MaxConns:        viper.GetInt("DB_MAX_CONNS"),
+		MinConns:        viper.GetInt("DB_MIN_CONNS"),
+		ConnMaxLifetime: time.Duration(viper.GetInt("DB_CONN_MAX_LIFETIME")) * time.Minute,
+		MaxConnIdleTime: time.Duration(viper.GetInt("DB_CONN_MAX_IDLE_TIME")) * time.Second,
 	}
 
-	dbConfig.URL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable&pool_max_conns=%d&pool_min_conns=%d",
+	dbConfig.URL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		dbConfig.User,
 		dbConfig.Password,
 		dbConfig.Host,
 		dbConfig.Port,
 		dbConfig.Name,
-		dbConfig.MaxConns,
-		dbConfig.MinConns,
 	)
 
 	cfg := &Config{
