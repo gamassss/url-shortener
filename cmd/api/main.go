@@ -4,6 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/gamassss/url-shortener/internal/config"
 	"github.com/gamassss/url-shortener/internal/handler"
@@ -21,10 +26,50 @@ func main() {
 		log.Fatal(err)
 	}
 
+	dbPool, err := setupDatabase(cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer dbPool.Close()
+
+	redisClient, err := setupRedis(cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer redisClient.Close()
+
+	urlRepo := postgres.NewURLRepository(dbPool)
+	urlCache := redisRepo.NewURLCache(redisClient)
+
+	shortenerService := service.NewShortenerService(urlRepo, urlCache)
+
+	shortenerHandler := handler.NewShortenerHandler(shortenerService)
+	healthHandler := handler.NewHealthHandler(dbPool, redisClient)
+
+	router := setupRouter(shortenerHandler, healthHandler)
+
+	srv := &http.Server{
+		Addr:         fmt.Sprintf(":%s", cfg.Server.Port),
+		Handler:      router,
+		ReadTimeout:  cfg.Server.ReadTimeout,
+		WriteTimeout: cfg.Server.WriteTimeout,
+	}
+
+	go func() {
+		log.Printf("Server starting on %s", srv.Addr)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Failed to start server: %v", err)
+		}
+	}()
+
+	gracefulShutdown(srv, cfg.Server.ShutdownTimeout, dbPool, redisClient)
+}
+
+func setupDatabase(cfg *config.Config) (*pgxpool.Pool, error) {
 	dbConfig := cfg.Database
 	poolConfig, err := pgxpool.ParseConfig(dbConfig.URL)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	poolConfig.MaxConns = int32(dbConfig.MaxConns)
@@ -34,15 +79,13 @@ func main() {
 
 	dbPool, err := pgxpool.NewWithConfig(context.Background(), poolConfig)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
-	defer dbPool.Close()
 
-	log.Printf("Max Connections: %d", poolConfig.MaxConns)
-	log.Printf("Min Connections: %d", poolConfig.MinConns)
-	log.Printf("Max Conn Lifetime: %s", poolConfig.MaxConnLifetime)
-	log.Printf("Max Conn Idle Time: %s", poolConfig.MaxConnIdleTime)
+	return dbPool, nil
+}
 
+func setupRedis(cfg *config.Config) (*redis.Client, error) {
 	redisClient := redis.NewClient(&redis.Options{
 		Addr:         cfg.Redis.Addr,
 		Password:     cfg.Redis.Password,
@@ -52,18 +95,19 @@ func main() {
 		MaxRetries:   cfg.Redis.MaxRetries,
 	})
 
-	if err = redisClient.Ping(context.Background()).Err(); err != nil {
-		log.Fatal(fmt.Errorf("failed to connect to redis: %w", err))
+	if err := redisClient.Ping(context.Background()).Err(); err != nil {
+		return nil, fmt.Errorf("failed to connect to redis: %w", err)
 	}
 
-	defer redisClient.Close()
+	return redisClient, nil
+}
 
-	urlRepo := postgres.NewURLRepository(dbPool)
-	urlCache := redisRepo.NewURLCache(redisClient)
-	shortenerService := service.NewShortenerService(urlRepo, urlCache)
-	shortenerHandler := handler.NewShortenerHandler(shortenerService)
-
+func setupRouter(shortenerHandler *handler.ShortenerHandler, healthHandler *handler.HealthHandler) *gin.Engine {
 	router := gin.Default()
+
+	// health check
+	router.GET("/healthz", healthHandler.Healthz)
+	router.GET("/readyz", healthHandler.Readyz)
 
 	api := router.Group("/api")
 	{
@@ -72,9 +116,29 @@ func main() {
 
 	router.GET("/:shortCode", shortenerHandler.Redirect)
 
-	addr := fmt.Sprintf(":%s", cfg.Server.Port)
-	log.Printf("Server starting on %s", addr)
-	if err = router.Run(addr); err != nil {
-		log.Fatal(err)
+	return router
+}
+
+func gracefulShutdown(srv *http.Server, timeout time.Duration, dbPool *pgxpool.Pool, redisClient *redis.Client) {
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	// block until received
+	sig := <-quit
+	log.Printf("Received: %v. Starting graceful shutdown...", sig)
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Printf("Server forced to shutdown: %v", err)
 	}
+
+	dbPool.Close()
+
+	if err := redisClient.Close(); err != nil {
+		log.Printf("Error closing Redis: %v", err)
+	}
+
+	log.Println("Graceful shutdown completed")
 }
