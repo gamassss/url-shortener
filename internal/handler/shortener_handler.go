@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gamassss/url-shortener/internal/domain"
+	"github.com/gamassss/url-shortener/pkg/detector"
 	"github.com/gamassss/url-shortener/pkg/response"
 	"github.com/gamassss/url-shortener/pkg/validator"
 	"github.com/gin-gonic/gin"
@@ -13,6 +14,7 @@ import (
 type ShortenerService interface {
 	ShortenURL(ctx context.Context, req *domain.CreatedURLRequest) (*domain.URL, error)
 	GetOriginalURL(ctx context.Context, shortCode string) (*domain.URL, bool, error)
+	RecordClick(ctx context.Context, click *domain.ClickRequest) error
 }
 
 type ShortenerHandler struct {
@@ -67,6 +69,27 @@ func (h *ShortenerHandler) Redirect(c *gin.Context) {
 		response.NotFound(c, "URL not found")
 		return
 	}
+
+	go func() {
+		userAgent := c.Request.UserAgent()
+		referer := c.Request.Referer()
+		clientIP := detector.GetClientIP(
+			c.Request.RemoteAddr,
+			c.Request.Header.Get("X-Forwarded-For"),
+			c.Request.Header.Get("X-Real-IP"),
+		)
+		deviceType := detector.DetectDeviceType(userAgent)
+
+		clickReq := &domain.ClickRequest{
+			URLID:      url.ID,
+			UserAgent:  userAgent,
+			Referer:    referer,
+			IPAddress:  clientIP,
+			DeviceType: deviceType,
+		}
+
+		_ = h.service.RecordClick(context.Background(), clickReq)
+	}()
 
 	if cacheHit {
 		c.Header("X-Cache-Hit", "true")

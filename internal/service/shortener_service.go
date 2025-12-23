@@ -23,13 +23,24 @@ type CacheRepository interface {
 	SetURL(ctx context.Context, url *domain.URL, ttl time.Duration) error
 }
 
-type ShortenerService struct {
-	urlRepo   URLRepository
-	cacheRepo CacheRepository
+type AnalyticsRepository interface {
+	RecordClick(ctx context.Context, click *domain.ClickRequest) error
+	GetAnalytics(ctx context.Context, urlID int64, days int) (*domain.URLAnalytics, error)
+	GetClickHistory(ctx context.Context, urlID int64, page, pageSize int) (*domain.ClickHistory, error)
 }
 
-func NewShortenerService(urlRepo URLRepository, cacheRepo CacheRepository) *ShortenerService {
-	return &ShortenerService{urlRepo: urlRepo, cacheRepo: cacheRepo}
+type ShortenerService struct {
+	urlRepo       URLRepository
+	cacheRepo     CacheRepository
+	analyticsRepo AnalyticsRepository
+}
+
+func NewShortenerService(urlRepo URLRepository, cacheRepo CacheRepository, analyticsRepo AnalyticsRepository) *ShortenerService {
+	return &ShortenerService{
+		urlRepo:       urlRepo,
+		cacheRepo:     cacheRepo,
+		analyticsRepo: analyticsRepo,
+	}
 }
 
 func (s *ShortenerService) ShortenURL(ctx context.Context, req *domain.CreatedURLRequest) (*domain.URL, error) {
@@ -98,4 +109,32 @@ func (s *ShortenerService) GetOriginalURL(ctx context.Context, shortCode string)
 	}()
 
 	return url, false, nil
+}
+
+func (s *ShortenerService) RecordClick(ctx context.Context, click *domain.ClickRequest) error {
+	return s.analyticsRepo.RecordClick(ctx, click)
+}
+
+func (s *ShortenerService) GetAnalytics(ctx context.Context, shortCode string, days int) (*domain.URLAnalytics, error) {
+	url, err := s.urlRepo.GetByShortCode(ctx, shortCode)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("URL not found")
+		}
+		return nil, fmt.Errorf("failed to get URL: %w", err)
+	}
+
+	return s.analyticsRepo.GetAnalytics(ctx, url.ID, days)
+}
+
+func (s *ShortenerService) GetClickHistory(ctx context.Context, shortCode string, page, pageSize int) (*domain.ClickHistory, error) {
+	url, err := s.urlRepo.GetByShortCode(ctx, shortCode)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("URL not found")
+		}
+		return nil, fmt.Errorf("failed to get URL: %w", err)
+	}
+
+	return s.analyticsRepo.GetClickHistory(ctx, url.ID, page, pageSize)
 }
