@@ -40,13 +40,15 @@ func main() {
 
 	urlRepo := postgres.NewURLRepository(dbPool)
 	urlCache := redisRepo.NewURLCache(redisClient)
+	analyticsRepo := postgres.NewAnalyticsRepository(dbPool)
 
-	shortenerService := service.NewShortenerService(urlRepo, urlCache)
+	shortenerService := service.NewShortenerService(urlRepo, urlCache, analyticsRepo)
 
 	shortenerHandler := handler.NewShortenerHandler(shortenerService)
+	analyticsHandler := handler.NewAnalyticsHandler(shortenerService)
 	healthHandler := handler.NewHealthHandler(dbPool, redisClient)
 
-	router := setupRouter(shortenerHandler, healthHandler)
+	router := setupRouter(shortenerHandler, analyticsHandler, healthHandler)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.Server.Port),
@@ -102,7 +104,11 @@ func setupRedis(cfg *config.Config) (*redis.Client, error) {
 	return redisClient, nil
 }
 
-func setupRouter(shortenerHandler *handler.ShortenerHandler, healthHandler *handler.HealthHandler) *gin.Engine {
+func setupRouter(
+	shortenerHandler *handler.ShortenerHandler,
+	analyticsHandler *handler.AnalyticsHandler,
+	healthHandler *handler.HealthHandler,
+) *gin.Engine {
 	router := gin.Default()
 
 	// health check
@@ -112,6 +118,9 @@ func setupRouter(shortenerHandler *handler.ShortenerHandler, healthHandler *hand
 	api := router.Group("/api")
 	{
 		api.POST("/shorten", shortenerHandler.ShortenURL)
+
+		api.GET("/analytics/:shortCode", analyticsHandler.GetAnalytics)
+		api.GET("/analytics/:shortCode/clicks", analyticsHandler.GetClickHistory)
 	}
 
 	router.GET("/:shortCode", shortenerHandler.Redirect)
