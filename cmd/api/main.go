@@ -14,6 +14,7 @@ import (
 	"github.com/gamassss/url-shortener/internal/config"
 	"github.com/gamassss/url-shortener/internal/handler"
 	"github.com/gamassss/url-shortener/internal/logger"
+	"github.com/gamassss/url-shortener/internal/middleware"
 	"github.com/gamassss/url-shortener/internal/repository/postgres"
 	redisRepo "github.com/gamassss/url-shortener/internal/repository/redis"
 	"github.com/gamassss/url-shortener/internal/service"
@@ -134,7 +135,11 @@ func setupRouter(
 	analyticsHandler *handler.AnalyticsHandler,
 	healthHandler *handler.HealthHandler,
 ) *gin.Engine {
-	router := gin.Default()
+	gin.SetMode(gin.ReleaseMode)
+	router := gin.New()
+
+	router.Use(gin.Recovery())
+	router.Use(middleware.Logger())
 
 	// health check
 	router.GET("/healthz", healthHandler.Healthz)
