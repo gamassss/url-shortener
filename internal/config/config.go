@@ -12,6 +12,7 @@ type Config struct {
 	Redis    RedisConfig
 	Server   ServerConfig
 	Database DatabaseConfig
+	Log      LogConfig
 }
 
 type RedisConfig struct {
@@ -45,6 +46,16 @@ type DatabaseConfig struct {
 	MaxConnIdleTime time.Duration
 }
 
+type LogConfig struct {
+	Level      string
+	Format     string
+	OutputPath string
+	MaxSize    int
+	MaxBackups int
+	MaxAge     int
+	Compress   bool
+}
+
 func Load() (*Config, error) {
 	viper.SetConfigFile(".env")
 	viper.AutomaticEnv()
@@ -71,6 +82,14 @@ func Load() (*Config, error) {
 	viper.SetDefault("DB_MIN_CONNS", 10)
 	viper.SetDefault("DB_CONN_MAX_LIFETIME", 5)
 	viper.SetDefault("DB_CONN_MAX_IDLE_TIME", 30) // in seconds
+
+	viper.SetDefault("LOG_LEVEL", "info")
+	viper.SetDefault("LOG_FORMAT", "json")
+	viper.SetDefault("LOG_OUTPUT_PATH", "")
+	viper.SetDefault("LOG_MAX_SIZE", 100)
+	viper.SetDefault("LOG_MAX_BACKUPS", 3)
+	viper.SetDefault("LOG_MAX_AGE", 7)
+	viper.SetDefault("LOG_COMPRESS", true)
 
 	if err := viper.ReadInConfig(); err != nil {
 		log.Println("Warning: .env file not found, using default values")
@@ -108,6 +127,16 @@ func Load() (*Config, error) {
 		dbConfig.Name,
 	)
 
+	logConfig := LogConfig{
+		Level:      viper.GetString("LOG_LEVEL"),
+		Format:     viper.GetString("LOG_FORMAT"),
+		OutputPath: viper.GetString("LOG_OUTPUT_PATH"),
+		MaxSize:    viper.GetInt("LOG_MAX_SIZE"),
+		MaxBackups: viper.GetInt("LOG_MAX_BACKUPS"),
+		MaxAge:     viper.GetInt("LOG_MAX_AGE"),
+		Compress:   viper.GetBool("LOG_COMPRESS"),
+	}
+
 	cfg := &Config{
 		Server: ServerConfig{
 			Port:            viper.GetString("SERVER_PORT"),
@@ -117,6 +146,7 @@ func Load() (*Config, error) {
 		},
 		Redis:    redisConfig,
 		Database: dbConfig,
+		Log:      logConfig,
 	}
 
 	return cfg, nil

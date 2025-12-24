@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/gamassss/url-shortener/internal/config"
 	"github.com/gamassss/url-shortener/internal/handler"
+	"github.com/gamassss/url-shortener/internal/logger"
 	"github.com/gamassss/url-shortener/internal/repository/postgres"
 	redisRepo "github.com/gamassss/url-shortener/internal/repository/redis"
 	"github.com/gamassss/url-shortener/internal/service"
@@ -26,15 +28,37 @@ func main() {
 		log.Fatal(err)
 	}
 
+	loggerConfig := logger.Config{
+		Level:      cfg.Log.Level,
+		Format:     cfg.Log.Format,
+		OutputPath: cfg.Log.OutputPath,
+		MaxSize:    cfg.Log.MaxSize,
+		MaxBackups: cfg.Log.MaxBackups,
+		MaxAge:     cfg.Log.MaxAge,
+		Compress:   cfg.Log.Compress,
+	}
+
+	if err := logger.Initialize(loggerConfig); err != nil {
+		log.Fatalf("Failed to initialize logger: %v", err)
+	}
+
+	log := logger.Get()
+	log.Info("Starting URL Shortener service",
+		"port", cfg.Server.Port,
+		"log_level", cfg.Log.Level,
+	)
+
 	dbPool, err := setupDatabase(cfg)
 	if err != nil {
-		log.Fatal(err)
+		log.Error("Failed to setup database", "error", err)
+		os.Exit(1)
 	}
 	defer dbPool.Close()
 
 	redisClient, err := setupRedis(cfg)
 	if err != nil {
-		log.Fatal(err)
+		log.Error("Failed to setup redis", "error", err)
+		os.Exit(1)
 	}
 	defer redisClient.Close()
 
@@ -58,13 +82,14 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("Server starting on %s", srv.Addr)
+		log.Info("Server listening", "address", srv.Addr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Failed to start server: %v", err)
+			log.Error("Server failed", "error", err)
+			os.Exit(1)
 		}
 	}()
 
-	gracefulShutdown(srv, cfg.Server.ShutdownTimeout, dbPool, redisClient)
+	gracefulShutdown(srv, cfg.Server.ShutdownTimeout, dbPool, redisClient, log)
 }
 
 func setupDatabase(cfg *config.Config) (*pgxpool.Pool, error) {
@@ -128,26 +153,26 @@ func setupRouter(
 	return router
 }
 
-func gracefulShutdown(srv *http.Server, timeout time.Duration, dbPool *pgxpool.Pool, redisClient *redis.Client) {
+func gracefulShutdown(srv *http.Server, timeout time.Duration, dbPool *pgxpool.Pool, redisClient *redis.Client, log *slog.Logger) {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
-	// block until received
 	sig := <-quit
-	log.Printf("Received: %v. Starting graceful shutdown...", sig)
+	log.Info("Shutdown signal received", "signal", sig.String())
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Printf("Server forced to shutdown: %v", err)
+		log.Error("Forced shutdown", "error", err)
 	}
 
 	dbPool.Close()
+	log.Info("Database connection closed")
 
 	if err := redisClient.Close(); err != nil {
-		log.Printf("Error closing Redis: %v", err)
+		log.Error("Error closing Redis", "error", err)
 	}
 
-	log.Println("Graceful shutdown completed")
+	log.Info("Graceful shutdown completed")
 }
