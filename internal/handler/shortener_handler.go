@@ -64,7 +64,7 @@ func (h *ShortenerHandler) ShortenURL(c *gin.Context) {
 	}
 
 	response.Created(c, "URL shortened successfully", gin.H{
-		"short_url":    h.baseURL + "/" + url.ShortCode,
+		"short_url":    baseURL + "/" + url.ShortCode,
 		"short_code":   url.ShortCode,
 		"original_url": url.OriginalURL,
 		"expires_at":   url.ExpiresAt,
