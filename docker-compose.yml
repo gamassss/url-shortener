@@ -2,9 +2,7 @@ version: "3.8"
 
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: gamass/urlshortener:latest
     container_name: urlshortener_app
     ports:
       - "${APP_PORT:-8080}:${SERVER_PORT:-8080}"
