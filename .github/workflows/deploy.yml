@@ -2,7 +2,7 @@ name: Deploy to Production
 
 on:
   push:
-    branches: [prod]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -43,7 +43,7 @@ jobs:
           script: |
             cd ~/projects/url-shortener
             
-            git pull origin prod
+            git pull origin main
             
             docker compose pull app
             
