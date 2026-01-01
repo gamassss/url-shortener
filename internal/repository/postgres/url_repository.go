@@ -29,8 +29,10 @@ func (r *URLRepository) GetByShortCode(ctx context.Context, shortCode string) (*
 	var url domain.URL
 
 	query := `
-		SELECT id, short_code, original_url, click_count, created_at, updated_at, expires_at, is_active FROM urls
-		WHERE short_code = $1	
+		SELECT id, short_code, original_url, click_count, created_at, updated_at, expires_at, is_active 
+		FROM urls
+		WHERE short_code = $1 AND is_active = true
+		AND (expires_at IS NULL OR expires_at > NOW())
 	`
 
 	row := r.db.QueryRow(ctx, query, shortCode)
