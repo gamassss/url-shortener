@@ -14,7 +14,7 @@ type URL struct {
 }
 
 type CreatedURLRequest struct {
-	URL         string `json:"url" validate:"required,url"`
+	OriginalURL string `json:"original_url" validate:"required,url"`
 	CustomAlias string `json:"custom_alias,omitempty" validate:"omitempty,min=4,max=20,alias"`
 	ExpiryHours int    `json:"expiry_hours,omitempty" validate:"omitempty,gte=1"`
 }

@@ -57,7 +57,7 @@ func (s *ShortenerService) ShortenURL(ctx context.Context, req *domain.CreatedUR
 		}
 
 		url := &domain.URL{
-			OriginalURL: req.URL,
+			OriginalURL: req.OriginalURL,
 			ShortCode:   shortCode,
 			IsActive:    true,
 		}
