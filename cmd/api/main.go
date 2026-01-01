@@ -69,7 +69,7 @@ func main() {
 
 	shortenerService := service.NewShortenerService(urlRepo, urlCache, analyticsRepo)
 
-	shortenerHandler := handler.NewShortenerHandler(shortenerService)
+	shortenerHandler := handler.NewShortenerHandler(shortenerService, cfg.Server.BaseURL)
 	analyticsHandler := handler.NewAnalyticsHandler(shortenerService)
 	healthHandler := handler.NewHealthHandler(dbPool, redisClient)
 

@@ -28,6 +28,7 @@ type RedisConfig struct {
 
 type ServerConfig struct {
 	Port            string
+	BaseURL         string
 	ShutdownTimeout time.Duration
 	ReadTimeout     time.Duration
 	WriteTimeout    time.Duration
@@ -61,6 +62,7 @@ func Load() (*Config, error) {
 	viper.AutomaticEnv()
 
 	viper.SetDefault("SERVER_PORT", "8080")
+	viper.SetDefault("BASE_URL", "http://localhost:8080")
 	viper.SetDefault("SERVER_SHUTDOWN_TIMEOUT", 30)
 	viper.SetDefault("SERVER_READ_TIMEOUT", 10)
 	viper.SetDefault("SERVER_WRITE_TIMEOUT", 10)
@@ -140,6 +142,7 @@ func Load() (*Config, error) {
 	cfg := &Config{
 		Server: ServerConfig{
 			Port:            viper.GetString("SERVER_PORT"),
+			BaseURL:         viper.GetString("BASE_URL"),
 			ShutdownTimeout: time.Duration(viper.GetInt("SERVER_SHUTDOWN_TIMEOUT")) * time.Second,
 			ReadTimeout:     time.Duration(viper.GetInt("SERVER_READ_TIMEOUT")) * time.Second,
 			WriteTimeout:    time.Duration(viper.GetInt("SERVER_WRITE_TIMEOUT")) * time.Second,

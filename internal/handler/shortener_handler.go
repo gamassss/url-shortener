@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/gamassss/url-shortener/internal/domain"
@@ -19,10 +20,11 @@ type ShortenerService interface {
 
 type ShortenerHandler struct {
 	service ShortenerService
+	baseURL string
 }
 
-func NewShortenerHandler(service ShortenerService) *ShortenerHandler {
-	return &ShortenerHandler{service: service}
+func NewShortenerHandler(service ShortenerService, baseURL string) *ShortenerHandler {
+	return &ShortenerHandler{service: service, baseURL: baseURL}
 }
 
 func (h *ShortenerHandler) ShortenURL(c *gin.Context) {
@@ -48,8 +50,21 @@ func (h *ShortenerHandler) ShortenURL(c *gin.Context) {
 		return
 	}
 
+	baseURL := h.baseURL
+	if baseURL == "" {
+		scheme := "https"
+		if c.Request.TLS == nil {
+			if proto := c.GetHeader("X-Forwarded-Proto"); proto != "" {
+				scheme = proto
+			} else {
+				scheme = "http"
+			}
+		}
+		baseURL = fmt.Sprintf("%s://%s", scheme, c.Request.Host)
+	}
+
 	response.Created(c, "URL shortened successfully", gin.H{
-		"short_url":    "http://localhost:8080/" + url.ShortCode,
+		"short_url":    h.baseURL + "/" + url.ShortCode,
 		"short_code":   url.ShortCode,
 		"original_url": url.OriginalURL,
 		"expires_at":   url.ExpiresAt,
